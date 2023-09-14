@@ -1,0 +1,601 @@
+---
+title: "Luzzago Descrittiva"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, eco=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+
+#PATH
+```{r}
+
+  
+pat<-"C:/Users/Luzzago - Classi di rischio/Fase III/Allegati/XX/"  
+
+```
+
+```{r}
+library(readxl)
+library(flextable)
+library(gtsummary)
+library(dplyr)
+
+R_TR<-0
+R_TE<-0
+Summa_TR<-matrix(NA, nrow = 500, ncol = 10) # empty matrixis.matrix(,Summa_TR,nrow=500,ncol=10)
+
+Summa_TE<-matrix(NA, nrow = 500, ncol = 10)
+
+
+
+
+
+```
+
+
+# Cycle FOR 
+```{r eco=FALSE}
+
+for(i in 1:500){
+
+
+IN <- read_excel("Seconda versione Database con SVI 3_2023.xlsx")
+
+
+
+
+IN<-IN%>%dplyr::select("EAU risk category",
+                       "Eta",
+                       "Persistenza + recidiva biochimica" ,
+                        "PSA iniziale",
+                       "N prelievi" ,
+                       "N prelievi positivi" ,
+                       "Prostate volume",
+                       "PSAD cat3",
+                       "cT coded",
+                       "ISUP",
+                       "cN" ,
+                       "Size IDL",
+                       "R",
+                       "PSA category",
+                       "PI_RADS category",
+                       "EPE category", 
+                       "pT" ,
+                       "pN",
+                       "Time to PERSISTENZA + BCR DA USARE",
+                       "RTP adiuvante",
+                       "NEW RISK",
+                       "% positive cores",
+                       "UCSF-CAPRA Age",
+                       "UCSF-CAPRA Age POINTS",
+                       "UCSF-CAPRA PSA",
+                       "UCSF-CAPRA PSA POINTS",
+                       "UCSF-CAPRA cT",
+                       "UCSF-CAPRA cT POINTS",
+                       "UCSF-CAPRA % cores",
+                       "UCSF-CAPRA % cores POINTS",
+                       "UCSF-CAPRA GS",
+                       "UCSF-CAPRA GS POINTS",
+                       "UCSF-CAPRA TOT POINTS",
+                       "UCSF-CAPRA GROUPS",
+                       "MSKCC Age",
+                       "MSKCC PSA",
+                       "MSKCC Positive Cores",
+                       "MSKCC Negative Cores",
+                       "MSKCC cT",
+                       "MSKCC GS Primary Pattern",
+                       "MSKCC GS Secondary Pattern",
+                       "PARTIN PSA",
+                       "PARTIN cT",
+                       "PARTIN ISUP",
+                       
+                          )
+
+
+IN$`PARTIN cT`<-as.factor(IN$`PARTIN cT`)
+IN$`MSKCC cT`<-as.factor(IN$`MSKCC cT`)
+
+
+CAR<-IN
+
+
+
+
+table(CAR$`PI_RADS category`)
+
+
+table(CAR$PIRADScat)
+
+
+CAR<-CAR%>%mutate(`Size IDL` = case_when(`Size IDL`== "diffuse" ~ "0",
+                                   `Size IDL`!= "diffuse" ~ `Size IDL`))
+
+CAR$`Size IDL`<-as.numeric(CAR$`Size IDL`)
+
+#summary(CAR$SIZE)
+
+ID<-c(1:length(CAR$`EAU risk category`))
+CAR<-cbind.data.frame(ID,CAR)
+rm("ID")
+
+Input<-CAR
+
+Input$`cT coded` <-as.factor(Input$cT)
+Input$ISUP<-as.factor(Input$ISUP)
+Input$R<-as.factor(Input$R)
+Input$cN <-as.factor(Input$cN )
+Input$`N prelievi`<-as.numeric(Input$`N prelievi`)
+Input$`PSAD cat3`<-as.factor(Input$`PSAD cat3`)
+Input<-Input%>%mutate(`PSAD cat3`= case_when(`PSAD cat3`==">0.25"~"C- >0.25",
+                                              `PSAD cat3`=="0-0.15"~ "A- 0-0.15",
+                                              `PSAD cat3`== "0.16-0.25"~"B- 0.16-0.25"))
+
+Input<-Input%>%mutate(`UCSF-CAPRA PSA`= case_when(`UCSF-CAPRA PSA`=="<=6" ~"A <=6",
+                      `UCSF-CAPRA PSA`=="da 6.1 a 10"~ "B (>6; <=10]",
+                      `UCSF-CAPRA PSA`== "da 10.1 a 20"~"C (>10; <=20]",
+                      `UCSF-CAPRA PSA`=="da 20.1 a 30"~ "D (>20; <= 30]",
+                      `UCSF-CAPRA PSA`== ">30" ~ "E >30"))
+
+Input<-Input%>%mutate(`UCSF-CAPRA GS`= case_when(`UCSF-CAPRA GS`=="No 4 or 5 pattern present"~ "A) Absent 4 or 5 pattern",
+                                                 `UCSF-CAPRA GS`=="4 or 5 pattern in secondary"~ "B) 4 or 5 pattern in secondary",
+                                                 `UCSF-CAPRA GS`=="4 or 5 pattern in primary"~"C) 4 or 5 pattern in primary"))
+                                                 
+                                                 
+
+
+table(Input$`UCSF-CAPRA PSA`)
+table(Input$`UCSF-CAPRA GS`)
+
+
+library(survival)
+library(readxl)
+library(dplyr)
+
+Input_KM <- Input
+
+Input_KM<-Input_KM%>%mutate(Capra10 = case_when(`UCSF-CAPRA TOT POINTS`<=1~"0-1",
+                                               `UCSF-CAPRA TOT POINTS`>=7~"7+",
+                                               TRUE~as.character(`UCSF-CAPRA TOT POINTS`)))
+
+
+
+
+
+table(Input_KM$`Persistenza + recidiva biochimica`)
+
+
+
+
+Input_KM<- Input_KM%>%mutate(Event5Y= case_when(`Time to PERSISTENZA + BCR DA USARE` > 60  ~ 0 ,
+`Time to PERSISTENZA + BCR DA USARE` <= 60   ~ `Persistenza + recidiva biochimica`))
+
+
+
+Input_KM<- Input_KM%>%mutate(Time5Y = case_when(
+  `Time to PERSISTENZA + BCR DA USARE` > 60 ~ 60,
+    `Time to PERSISTENZA + BCR DA USARE` <= 60 ~  `Time to PERSISTENZA + BCR DA USARE`))
+
+table(Input_KM$Event5Y)
+
+
+
+table(Input_KM$`Persistenza + recidiva biochimica`)
+
+
+
+#2 -Preparo i dati SURV
+
+INKM<-Input_KM
+
+# ==TRAINING 
+
+
+
+
+ds<-"TR"
+
+
+
+n<-floor(1459*.70)
+x = sample(c(1:1459), size = n, replace = FALSE)
+
+TR<-INKM[x,]
+TE<-INKM[-x,]
+
+InputTR<-Input_KM[x,]
+InputTE<-Input_KM[-x,]
+
+
+TR$Dataset<-rep("TR",1021)
+TE$Dataset<-rep("TE",438)
+
+InputTR<-TR%>%select(-c("Event5Y","Time5Y"))
+InputTE<-TE%>%select(-c("Event5Y","Time5Y"))
+
+TRTE<-rbind.data.frame(InputTR,InputTE)
+
+
+
+#pat<-"C:/Users/ieo6025/OneDrive - Istituto Europeo di Oncologia/Documenti/0Lavori/Luzzago - Classi di rischio/Fase II/Codice/Allegati/TR/"
+  
+Input<-InputTR
+
+
+
+
+
+# Survival
+
+
+library(survival)
+library(readxl)
+library(dplyr)
+
+
+
+
+Input_KM <- Input
+
+# Filtro a 5 anni
+
+table(Input_KM$`Persistenza + recidiva biochimica`)
+
+
+
+
+Input_KM<- Input_KM%>%mutate(Event5Y= case_when(`Time to PERSISTENZA + BCR DA USARE` > 60  ~ 0 ,
+`Time to PERSISTENZA + BCR DA USARE` <= 60   ~ `Persistenza + recidiva biochimica`))
+
+
+
+Input_KM<- Input_KM%>%mutate(Time5Y = case_when(
+  `Time to PERSISTENZA + BCR DA USARE` > 60 ~ 60,
+    `Time to PERSISTENZA + BCR DA USARE` <= 60 ~  `Time to PERSISTENZA + BCR DA USARE`))
+
+table(Input_KM$Event5Y)
+
+
+#Input_KM<-Input_KM[,-3]
+#Input_KM<-Input_KM[,-18]
+
+
+#Input_KM$`Time to PERSISTENZA + BCR DA USARE`<-Input_KM$`Time5Y <- ...`
+#Input_KM$`Persistenza + recidiva biochimica`<- Input_KM$`Event5Y <- ...`
+
+
+
+
+
+
+table(Input_KM$`Persistenza + recidiva biochimica`)
+
+
+
+#2 -Preparo i dati SURV
+
+INKM<-Input_KM
+
+#INKM<-cbind.data.frame(Input_KM$`Time to PERSISTENZA + BCR DA USARE`,Input_KM$`Persistenza + recidiva biochimica`, Input_KM$`EAU risk category` )
+
+
+#INKM<-cbind.data.frame(Input_KM$`Time to PERSISTENZA + BCR DA USARE`,Input_KM$`Persistenza + recidiva biochimica`,Input_KM$`EAU risk category`)
+
+
+#colnames(INKM)<-c("Time","Event","EAU")
+
+
+
+#3COX
+
+## COX Base (EAU)
+
+S<-Surv(INKM$Time5Y,INKM$Event5Y)
+
+
+#Modbase<-coxph(S~`PSA category`+`cT coded`+cN+ISUP,data=INKM,x=T,y=T)
+
+Modbase<-coxph(S~`PSA iniziale`+`cT coded`+cN+ISUP,data=INKM,x=T)
+
+
+
+
+INKMTR<-INKM
+
+
+## COX Completo Modello completo (età, ISUP, cN, PSA-density, lesion size, PI-RADS category, EPE category); 
+
+
+Modpieno<-coxph(S~Eta+ISUP+cN+ `PSAD cat3`+`Size IDL`+ `PI_RADS category`+`EPE category`,data=INKM,x=T)
+
+
+summary(Modpieno)
+
+
+
+
+
+library(gtsummary)
+
+
+ModSign<-coxph(S~ ISUP+cN+`PSAD cat3`+ `PI_RADS category`+`EPE category`,data=INKM,x=T)
+
+
+#save_as_docx(Tab6,path=paste(pat,"Tab6_Cox_significativo.docx",sep=""))
+
+
+
+
+## COX CAPRA
+
+
+ModCapra<-coxph(S~ `UCSF-CAPRA Age`+`UCSF-CAPRA PSA`+ `UCSF-CAPRA cT`+ `UCSF-CAPRA % cores`+ `UCSF-CAPRA GS`,data=INKM,x=T)
+
+
+#save_as_docx(Tab_CAPRAmodel,path=paste(pat,"TabXX_Cox_CAPRA.docx",sep=""))
+
+
+## COX MSKCC
+
+
+ModSK<-coxph(S~`MSKCC Age`+	`MSKCC PSA`+`MSKCC Positive Cores`+`MSKCC Negative Cores`+`MSKCC cT`+`MSKCC GS Primary Pattern`+`MSKCC GS Secondary Pattern`,data=INKM,x=T)
+
+
+
+#save_as_docx(Tab_MSKCC,path=paste(pat,"TabXX_Cox_MSKCC.docx",sep=""))
+
+
+
+## COX PARTIN
+
+
+INKM$`PARTIN cT`<-as.factor(INKM$`PARTIN cT`)
+
+ModPartin<-coxph(S~`PARTIN PSA`+	`PARTIN cT`+`PARTIN ISUP`,data=INKM,x=T)
+
+
+
+#save_as_docx(Tab_Partin,path=paste(pat,"TabXX_Cox_Partin.docx",sep=""))
+
+
+
+# C index + PLRtest
+
+
+
+Predict_Pipen<-predict(ModSign,newdata=INKMTR,type="lp")
+Predict_EAU<-predict(Modbase,newdata=INKMTR,type="lp")
+Predict_Capra<-predict(ModCapra,newdata=INKMTR,type="lp")
+Predict_MSKCC<-predict(ModSK,newdata=INKMTR,type="lp")
+Predict_Partin<-predict(ModPartin ,newdata=INKMTR,type="lp")
+
+TR_pipen<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_Pipen,x=T,y=T)
+TR_EAU<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_EAU,data=INKMTR,x=T,y=T)
+TR_Capra<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_Capra,data=INKMTR,x=T,y=T)
+TR_MSKCC<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_MSKCC,data=INKMTR,x=T,y=T)
+TR_Partin<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_Partin,data=INKMTR,x=T,y=T)
+
+
+
+R_TR[1]<-i
+R_TR[2]<-summary(TR_pipen)$concordance[1]
+R_TR[3]<-summary(TR_EAU)$concordance[1]
+R_TR[4]<-summary(TR_Capra)$concordance[1]
+R_TR[5]<-summary(TR_MSKCC)$concordance[1]
+R_TR[6]<-summary(TR_Partin)$concordance[1]
+R_TR[7]<-plrtest(TR_EAU,TR_pipen,nested = F,adjusted="AIC")$pLRTB
+R_TR[8]<-plrtest(TR_Capra,TR_pipen,nested = F,adjusted="AIC")$pLRTB
+R_TR[9]<-plrtest(TR_MSKCC,TR_pipen,nested = F,adjusted="AIC")$pLRTB
+R_TR[10]<-plrtest(TR_Partin,TR_pipen,nested = F,adjusted="AIC")$pLRTB
+R_TR
+
+
+
+Summa_TR[i,]<-t(R_TR)
+
+
+
+
+
+
+
+#=== TEST
+
+
+
+
+# Survival
+
+library(survival)
+library(readxl)
+library(dplyr)
+
+
+
+
+Input_KM <- TE
+
+
+
+
+
+
+INKM<-Input_KM
+
+
+INKMTE<-INKM
+
+
+
+
+# C index + PLRtest
+
+
+
+
+
+Predict_Pipen<-predict(ModSign,newdata=INKMTE,type="lp")
+Predict_EAU<-predict(Modbase,newdata=INKMTE,type="lp")
+Predict_Capra<-predict(ModCapra,newdata=INKMTE,type="lp")
+Predict_MSKCC<-predict(ModSK,newdata=INKMTE,type="lp")
+Predict_Partin<-predict(ModPartin ,newdata=INKMTE,type="lp")
+TE_pipen<-coxph(Surv(INKMTE$Time5Y,INKMTE$Event5Y)~Predict_Pipen,x=T,y=T)
+TE_EAU<-coxph(Surv(INKMTE$Time5Y,INKMTE$Event5Y)~Predict_EAU,data=INKMTE,x=T,y=T)
+TE_Capra<-coxph(Surv(INKMTE$Time5Y,INKMTE$Event5Y)~Predict_Capra,data=INKMTE,x=T,y=T)
+TE_MSKCC<-coxph(Surv(INKMTE$Time5Y,INKMTE$Event5Y)~Predict_MSKCC,data=INKMTE,x=T,y=T)
+TE_Partin<-coxph(Surv(INKMTE$Time5Y,INKMTE$Event5Y)~Predict_Partin,data=INKMTE,x=T,y=T)
+
+
+
+R_TE[1]<-i
+R_TE[2]<-summary(TE_pipen)$concordance[1]
+R_TE[3]<-summary(TE_EAU)$concordance[1]
+R_TE[4]<-summary(TE_Capra)$concordance[1]
+R_TE[5]<-summary(TE_MSKCC)$concordance[1]
+R_TE[6]<-summary(TE_Partin)$concordance[1]
+R_TE[7]<-plrtest(TE_EAU,TE_pipen,nested = F,adjusted="AIC")$pLRTB
+R_TE[8]<-plrtest(TE_Capra,TE_pipen,nested = F,adjusted="AIC")$pLRTB
+R_TE[9]<-plrtest(TE_MSKCC,TE_pipen,nested = F,adjusted="AIC")$pLRTB
+R_TE[10]<-plrtest(TE_Partin,TE_pipen,nested = F,adjusted="AIC")$pLRTB
+R_TE<-as.vector(R_TE)
+
+
+
+Summa_TE[i,]<-t(R_TE)
+
+}
+
+```
+
+
+#Training
+
+```{r}
+pat<-"C:/Users//Luzzago - Classi di rischio/Fase III/Allegati/"  
+
+
+summary(Summa_TR)
+summary(Summa_TE)
+
+m_pipen_TR<-round(median(Summa_TR[,2]),4)
+m_eau_TR<-round(median(Summa_TR[,3]),4)
+m_capra_TR<-round(median(Summa_TR[,4]),4)
+m_mskcc_TR<-round(median(Summa_TR[,5]),4)
+m_partin_TR<-round(median(Summa_TR[,6]),4)
+
+M<-c(m_pipen_TR,m_eau_TR,m_capra_TR,m_mskcc_TR,m_partin_TR)
+
+low_pipen_TR<-round(quantile(Summa_TR[,2],prob=.25),4)
+low_eau_TR<-round(quantile(Summa_TR[,3],prob=.25),4)
+low_capra_TR<-round(quantile(Summa_TR[,4],prob=.25),4)
+low_mskcc_TR<-round(quantile(Summa_TR[,5],prob=.25),4)
+low_partin_TR<-round(quantile(Summa_TR[,6],prob=.25),4)
+
+
+
+upp_pipen_TR<-round(quantile(Summa_TR[,2],prob=.75),4)
+upp_eau_TR<-round(quantile(Summa_TR[,3],prob=.75),4)
+upp_capra_TR<-round(quantile(Summa_TR[,4],prob=.75),4)
+upp_mskcc_TR<-round(quantile(Summa_TR[,5],prob=.75),4)
+upp_partin_TR<-round(quantile(Summa_TR[,6],prob=.75),4)
+
+
+
+iqr_pipen_TR<-paste("(",low_pipen_TR,"-",upp_pipen_TR,")",sep="")
+iqr_eau_TR<-paste("(",low_eau_TR,"-",upp_eau_TR,")",sep="")
+iqr_capra_TR<-paste("(",low_capra_TR,"-",upp_capra_TR,")",sep="")
+iqr_mskcc_TR<-paste("(",low_mskcc_TR,"-",upp_mskcc_TR,")",sep="")
+iqr_partin_TR<-paste("(",low_partin_TR,"-",upp_partin_TR,")",sep="")
+
+IQR<-c(iqr_pipen_TR,iqr_eau_TR,iqr_capra_TR,iqr_mskcc_TR,iqr_partin_TR)
+L<-c("P.I.P.E.N.","EAU","CAPRA","MSKCC","PARTIN")
+
+CI_TR<-cbind.data.frame(L,M,IQR)
+
+Summa_TR<-as.data.frame(Summa_TR)
+
+
+
+Summa_TR<-Summa_TR%>%mutate(plr_eau=if_else(V7<.05,1,0))%>%mutate(plr_capra=if_else(V8<.05,1,0))%>%mutate(plr_mskcc=if_else(V9<.05,1,0))%>%mutate(plr_partin=if_else(V10 <.05,1,0))
+
+plreau=round(100*sum(Summa_TR$plr_eau)/500,2)
+plrcapra=round(100*sum(Summa_TR$plr_capra)/500,2)
+plrmskcc=round(100*sum(Summa_TR$plr_mskcc)/500,2)
+plrpartin=round(100*sum(Summa_TR$plr_partin)/500,2)
+
+CI_TR$PLR<-c("-",plreau,plrcapra,plrmskcc,plrpartin)
+
+CI_TR<-as.data.frame(CI_TR)
+colnames(CI_TR)<-c("Model","C-index Median","C-index IQR","% PLR test P.I.P.E.N.better fit")
+CI_TR<-flextable(CI_TR)
+save_as_docx(CI_TR,path=paste(pat,"CI_SIM_TR.docx",sep=""))
+```
+# TEST 
+```{r}
+
+
+m_pipen_TE<-round(median(Summa_TE[,2]),4)
+m_eau_TE<-round(median(Summa_TE[,3]),4)
+m_capra_TE<-round(median(Summa_TE[,4]),4)
+m_mskcc_TE<-round(median(Summa_TE[,5]),4)
+m_partin_TE<-round(median(Summa_TE[,6]),4)
+
+M<-c(m_pipen_TE,m_eau_TE,m_capra_TE,m_mskcc_TE,m_partin_TE)
+
+low_pipen_TE<-round(quantile(Summa_TE[,2],prob=.25),4)
+low_eau_TE<-round(quantile(Summa_TE[,3],prob=.25),4)
+low_capra_TE<-round(quantile(Summa_TE[,4],prob=.25),4)
+low_mskcc_TE<-round(quantile(Summa_TE[,5],prob=.25),4)
+low_partin_TE<-round(quantile(Summa_TE[,6],prob=.25),4)
+
+
+
+upp_pipen_TE<-round(quantile(Summa_TE[,2],prob=.75),4)
+upp_eau_TE<-round(quantile(Summa_TE[,3],prob=.75),4)
+upp_capra_TE<-round(quantile(Summa_TE[,4],prob=.75),4)
+upp_mskcc_TE<-round(quantile(Summa_TE[,5],prob=.75),4)
+upp_partin_TE<-round(quantile(Summa_TE[,6],prob=.75),4)
+
+
+
+iqr_pipen_TE<-paste("(",low_pipen_TE,"-",upp_pipen_TE,")",sep="")
+iqr_eau_TE<-paste("(",low_eau_TE,"-",upp_eau_TE,")",sep="")
+iqr_capra_TE<-paste("(",low_capra_TE,"-",upp_capra_TE,")",sep="")
+iqr_mskcc_TE<-paste("(",low_mskcc_TE,"-",upp_mskcc_TE,")",sep="")
+iqr_partin_TE<-paste("(",low_partin_TE,"-",upp_partin_TE,")",sep="")
+
+IQR<-c(iqr_pipen_TE,iqr_eau_TE,iqr_capra_TE,iqr_mskcc_TE,iqr_partin_TE)
+L<-c("P.I.P.E.N.","EAU","CAPRA","MSKCC","PARTIN")
+
+CI_TE<-cbind.data.frame(L,M,IQR)
+
+Summa_TE<-as.data.frame(Summa_TE)
+
+
+
+Summa_TE<-Summa_TE%>%mutate(plr_eau=if_else(V7<.05,1,0))%>%mutate(plr_capra=if_else(V8<.05,1,0))%>%mutate(plr_mskcc=if_else(V9<.05,1,0))%>%mutate(plr_partin=if_else(V10 <.05,1,0))
+
+plreau=round(100*sum(Summa_TE$plr_eau)/500,2)
+plrcapra=round(100*sum(Summa_TE$plr_capra)/500,2)
+plrmskcc=round(100*sum(Summa_TE$plr_mskcc)/500,2)
+plrpartin=round(100*sum(Summa_TE$plr_partin)/500,2)
+
+CI_TE$PLR<-c("-",plreau,plrcapra,plrmskcc,plrpartin)
+
+CI_TE<-as.data.frame(CI_TE)
+colnames(CI_TE)<-c("Model","C-index Median","C-index IQR","% PLR test P.I.P.E.N.better fit")
+CI_TE<-flextable(CI_TE)
+save_as_docx(CI_TE,path=paste(pat,"CI_SIM_TE.docx",sep=""))
+```
+
+
+# RUN
+```{r}
+
+```
+

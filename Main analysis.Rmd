@@ -1,0 +1,1992 @@
+---
+title: "Luzzago work"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, eco=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+
+#PATH
+```{r}
+
+  
+pat<-"C:/Users/ - Classi di rischio/Luzzago - Classi di rischio/Fase III/Allegati/ALL/"  
+
+```
+
+
+
+#Data
+```{r}
+library(readxl)
+library(flextable)
+library(gtsummary)
+library(dplyr)
+
+
+
+IN <- read_excel("Seconda versione Database con SVI 3_2023.xlsx")
+
+
+
+
+IN<-IN%>%dplyr::select("EAU risk category",
+                       "Eta",
+                       "Persistenza + recidiva biochimica" ,
+                        "PSA iniziale",
+                       "N prelievi" ,
+                       "N prelievi positivi" ,
+                       "Prostate volume",
+                       "PSAD cat3",
+                       "cT coded",
+                       "ISUP",
+                       "cN" ,
+                       "Size IDL",
+                       "R",
+                       "PSA category",
+                       "PI_RADS category",
+                       "EPE category", 
+                       "pT" ,
+                       "pN",
+                       "Time to PERSISTENZA + BCR DA USARE",
+                       "RTP adiuvante",
+                       "NEW RISK",
+                       "% positive cores",
+                       "UCSF-CAPRA Age",
+                       "UCSF-CAPRA Age POINTS",
+                       "UCSF-CAPRA PSA",
+                       "UCSF-CAPRA PSA POINTS",
+                       "UCSF-CAPRA cT",
+                       "UCSF-CAPRA cT POINTS",
+                       "UCSF-CAPRA % cores",
+                       "UCSF-CAPRA % cores POINTS",
+                       "UCSF-CAPRA GS",
+                       "UCSF-CAPRA GS POINTS",
+                       "UCSF-CAPRA TOT POINTS",
+                       "UCSF-CAPRA GROUPS",
+                       "MSKCC Age",
+                       "MSKCC PSA",
+                       "MSKCC Positive Cores",
+                       "MSKCC Negative Cores",
+                       "MSKCC cT",
+                       "MSKCC GS Primary Pattern",
+                       "MSKCC GS Secondary Pattern",
+                       "PARTIN PSA",
+                       "PARTIN cT",
+                       "PARTIN ISUP",
+                       
+                          )
+
+
+IN$`PARTIN cT`<-as.factor(IN$`PARTIN cT`)
+IN$`MSKCC cT`<-as.factor(IN$`MSKCC cT`)
+
+
+CAR<-IN
+
+```
+
+
+
+
+# Categorisation
+## PRADS
+
+## SIZE
+
+Epe e PSA density not categorized use  EPE category e PSAD cat3
+```{r}
+
+
+table(CAR$`PI_RADS category`)
+
+
+table(CAR$PIRADScat)
+
+
+CAR<-CAR%>%mutate(`Size IDL` = case_when(`Size IDL`== "diffuse" ~ "0",
+                                   `Size IDL`!= "diffuse" ~ `Size IDL`))
+
+CAR$`Size IDL`<-as.numeric(CAR$`Size IDL`)
+
+#summary(CAR$SIZE)
+
+ID<-c(1:length(CAR$`EAU risk category`))
+CAR<-cbind.data.frame(ID,CAR)
+rm("ID")
+
+Input<-CAR
+
+Input$`cT coded` <-as.factor(Input$cT)
+Input$ISUP<-as.factor(Input$ISUP)
+Input$R<-as.factor(Input$R)
+Input$cN <-as.factor(Input$cN )
+Input$`N prelievi`<-as.numeric(Input$`N prelievi`)
+Input$`PSAD cat3`<-as.factor(Input$`PSAD cat3`)
+Input<-Input%>%mutate(`PSAD cat3`= case_when(`PSAD cat3`==">0.25"~"C- >0.25",
+                                              `PSAD cat3`=="0-0.15"~ "A- 0-0.15",
+                                              `PSAD cat3`== "0.16-0.25"~"B- 0.16-0.25"))
+
+Input<-Input%>%mutate(`UCSF-CAPRA PSA`= case_when(`UCSF-CAPRA PSA`=="<=6" ~"A <=6",
+                      `UCSF-CAPRA PSA`=="da 6.1 a 10"~ "B (>6; <=10]",
+                      `UCSF-CAPRA PSA`== "da 10.1 a 20"~"C (>10; <=20]",
+                      `UCSF-CAPRA PSA`=="da 20.1 a 30"~ "D (>20; <= 30]",
+                      `UCSF-CAPRA PSA`== ">30" ~ "E >30"))
+
+Input<-Input%>%mutate(`UCSF-CAPRA GS`= case_when(`UCSF-CAPRA GS`=="No 4 or 5 pattern present"~ "A) Absent 4 or 5 pattern",
+                                                 `UCSF-CAPRA GS`=="4 or 5 pattern in secondary"~ "B) 4 or 5 pattern in secondary",
+                                                 `UCSF-CAPRA GS`=="4 or 5 pattern in primary"~"C) 4 or 5 pattern in primary"))
+                                                 
+                                                 
+
+
+table(Input$`UCSF-CAPRA PSA`)
+table(Input$`UCSF-CAPRA GS`)
+
+```
+# 1 -TABles
+
+```{r}
+# 1 PIPEN 2 EAU 3 CAPRA 4 MSKCC 5 Partin
+
+fisher.test.simulate.p.values <- function(data, variable, by, ...) {
+  result <- list()
+  test_results <- stats::fisher.test(data[[variable]], data[[by]], simulate.p.value = TRUE, B=2000)
+  result$p <- test_results$p.value
+  result$test <- test_results$method
+  result
+}
+
+
+Fg<-0
+
+if(Fg==1){
+
+library(dplyr)
+library(flextable)
+data.Tab1a<-cbind(Input[,c(2:12,22)])
+data.Tab1b<-Input[,13:22]
+data.Tab1c<-Input[,c("UCSF-CAPRA Age", "UCSF-CAPRA PSA", "UCSF-CAPRA cT", "UCSF-CAPRA % cores", "UCSF-CAPRA GS","MSKCC Age",	"MSKCC PSA",	"MSKCC Positive Cores",	"MSKCC Negative Cores",	"MSKCC cT",	"MSKCC GS Primary Pattern",	"MSKCC GS Secondary Pattern","PARTIN PSA",	"PARTIN cT",	"PARTIN ISUP","NEW RISK")]
+
+data.Tab2a<-Input[,2:12]
+data.Tab2b<-Input[,c(2,13:22)]
+data.Tab2c<-Input[,c("UCSF-CAPRA Age", "UCSF-CAPRA PSA", "UCSF-CAPRA cT", "UCSF-CAPRA % cores", "UCSF-CAPRA GS","MSKCC Age",	"MSKCC PSA",	"MSKCC Positive Cores",	"MSKCC Negative Cores",	"MSKCC cT",	"MSKCC GS Primary Pattern",	"MSKCC GS Secondary Pattern","PARTIN PSA",	"PARTIN cT",	"PARTIN ISUP","EAU risk category")]
+
+
+data.Tab3a<-Input[,c(35,2:12)]
+data.Tab3b<-Input[,c(35,13:22)]
+data.Tab3c<-Input[,c("UCSF-CAPRA Age", "UCSF-CAPRA PSA", "UCSF-CAPRA cT", "UCSF-CAPRA % cores","% positive cores", "UCSF-CAPRA GS","MSKCC Age",	"MSKCC PSA",	"MSKCC Positive Cores",	"MSKCC Negative Cores",	"MSKCC cT",	"MSKCC GS Primary Pattern",	"MSKCC GS Secondary Pattern","PARTIN PSA",	"PARTIN cT",	"PARTIN ISUP","UCSF-CAPRA GROUPS")]
+
+
+
+
+
+
+
+# ---- PIPEN
+
+
+library(gtsummary)
+set_gtsummary_theme(theme_gtsummary_compact())
+
+#Tab1<-gtsummary::tbl_summary(Input[,2:22],by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ,  all_categorical() ~ "{n}  ({p}%)"))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+Tab1a<-gtsummary::tbl_summary(data.Tab1a,by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ,  all_categorical() ~ "{n}  ({p}%)"))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+Tab1b<-gtsummary::tbl_summary(data.Tab1b,by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ,  all_categorical() ~ "{n}  ({p}%)"))%>%add_overall()%>%add_p(test = list(all_categorical() ~ "fisher.test.simulate.p.values"))%>%as_flex_table()
+
+Tab1c<-gtsummary::tbl_summary(data.Tab1c,by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p(test = list(all_categorical() ~ "fisher.test.simulate.p.values"))%>%as_flex_table()
+
+
+
+Tab1a<-set_caption(Tab1a, caption = "Tab1a - Clinical characteristics by New Risk category", autonum = 1)
+save_as_docx(Tab1a,path=paste(pat,"Tab1a.docx",sep=""))
+
+Tab1b<-set_caption(Tab1b, caption = "Tab1b - Clinical characteristics by New Risk category", autonum = 1)
+save_as_docx(Tab1b,path=paste(pat,"Tab1b.docx",sep=""))
+
+Tab1c<-set_caption(Tab1c, caption = "Tab1c - Clinical characteristics by New Risk category", autonum = 1)
+save_as_docx(Tab1c,path=paste(pat,"Tab1c.docx",sep=""))
+
+
+
+
+#Tab2<-gtsummary::tbl_summary(Input[,2:22],by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+# ---- EAU
+
+
+Tab2a<-gtsummary::tbl_summary(data.Tab2a,by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+Tab2b<-gtsummary::tbl_summary(data.Tab2b,by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p(test = list(all_categorical() ~ "fisher.test.simulate.p.values"))%>%as_flex_table()
+
+
+Tab2c<-gtsummary::tbl_summary(data.Tab2c,by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+Tab2a<-set_caption(Tab2a, caption = "Tab2a - Clinical characteristics by EAU Risk category", autonum = 1)
+save_as_docx(Tab2a,path=paste(pat,"Tab2a.docx",sep=""))
+
+Tab2b<-set_caption(Tab2b, caption = "Tab2b - Clinical characteristics by EAU Risk category", autonum = 1)
+save_as_docx(Tab2b,path=paste(pat,"Tab2b.docx",sep=""))
+
+Tab2c<-set_caption(Tab2c, caption = "Tab2c - Clinical characteristics by EAU Risk category", autonum = 1)
+save_as_docx(Tab2c,path=paste(pat,"Tab2c.docx",sep=""))
+
+
+
+
+# ---- CAPRA
+Tab3a<-gtsummary::tbl_summary(data.Tab3a,by= `UCSF-CAPRA GROUPS`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+Tab3b<-gtsummary::tbl_summary(data.Tab3b,by= `UCSF-CAPRA GROUPS`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p(test = list(all_categorical() ~ "fisher.test.simulate.p.values"))%>%as_flex_table()
+
+
+Tab3c<-gtsummary::tbl_summary(data.Tab3c,by= `UCSF-CAPRA GROUPS`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+Tab3a<-set_caption(Tab3a, caption = "Tab3a - Clinical characteristics by CAPRA Risk category (3 categories)", autonum = 1)
+save_as_docx(Tab3a,path=paste(pat,"Tab3a.docx",sep=""))
+
+Tab3b<-set_caption(Tab3b, caption = "Tab3b - Clinical characteristics by CAPRA Risk category (3 categories)", autonum = 1)
+save_as_docx(Tab3b,path=paste(pat,"Tab3b.docx",sep=""))
+
+Tab3c<-set_caption(Tab3c, caption = "Tab3c - Clinical characteristics by CAPRA Risk category (3 categories)", autonum = 1)
+save_as_docx(Tab3c,path=paste(pat,"Tab3c.docx",sep=""))
+
+
+
+
+
+
+
+
+
+}
+
+
+T.fisher_ct<-table(Input$pT,Input$`NEW RISK`)
+set.seed(3180)
+fisher.test(T.fisher_ct,simulate.p.value=TRUE,B=1000)
+
+
+T.fisher_Capra_age<-table(Input$`UCSF-CAPRA Age`,Input$`NEW RISK`)
+set.seed(3180)
+fisher.test(T.fisher_Capra_age,simulate.p.value=TRUE,B=1000)
+
+
+
+```
+
+
+
+
+
+# Survival
+```{r}
+library(survival)
+library(readxl)
+library(dplyr)
+
+Input_KM <- Input
+
+Input_KM<-Input_KM%>%mutate(Capra10 = case_when(`UCSF-CAPRA TOT POINTS`<=1~"0-1",
+                                               `UCSF-CAPRA TOT POINTS`>=7~"7+",
+                                               TRUE~as.character(`UCSF-CAPRA TOT POINTS`)))
+
+
+
+```
+
+# Filtro a 5 anni
+```{r}
+
+table(Input_KM$`Persistenza + recidiva biochimica`)
+
+
+
+
+Input_KM<- Input_KM%>%mutate(Event5Y= case_when(`Time to PERSISTENZA + BCR DA USARE` > 60  ~ 0 ,
+`Time to PERSISTENZA + BCR DA USARE` <= 60   ~ `Persistenza + recidiva biochimica`))
+
+
+
+Input_KM<- Input_KM%>%mutate(Time5Y = case_when(
+  `Time to PERSISTENZA + BCR DA USARE` > 60 ~ 60,
+    `Time to PERSISTENZA + BCR DA USARE` <= 60 ~  `Time to PERSISTENZA + BCR DA USARE`))
+
+table(Input_KM$Event5Y)
+
+
+
+table(Input_KM$`Persistenza + recidiva biochimica`)
+
+
+
+
+```
+#2 -Preparo i dati SURV
+
+
+```{r}
+INKM<-Input_KM
+
+
+
+```
+
+# STIMO  e grafica KM
+
+Overall
+EAU
+PIPEN
+CAPRA3
+CAPRA10
+
+
+```{r}
+
+library(survival)
+library(ggplot2)
+library(survminer)
+library(flextable)
+
+fit0 <- survfit(Surv(Time5Y, Event5Y) ~ 1, data=INKM)
+l<-round(summary(fit0,time=60)$lower,3)
+m<-round(summary(fit0,time=60)$surv,3)
+u<-round(summary(fit0,time=60)$upper,3)
+vlmu0<-as.data.frame(t(c("60",m,l,u)))
+colnames(vlmu0)<-c("Time","Surv.prob.", "Lower","Upper")
+vlmu0<-flextable(vlmu0)
+save_as_docx(vlmu0,path=paste(pat,"vlmu0.docx",sep=""))
+
+
+fit1 <- survfit(Surv(Time5Y, Event5Y) ~ INKM$`EAU risk category`, data=INKM)
+LogR1<-survdiff(Surv(Time5Y, Event5Y) ~ INKM$`EAU risk category`, data=INKM)$pvalue
+LogR1<-ifelse(LogR1<0.001,"<0.001",LogR1)
+
+l<-round(summary(fit1,time=60)$lower,3)
+m<-round(summary(fit1,time=60)$surv,3)
+u<-round(summary(fit1,time=60)$upper,3)
+strata<-c("Hight","Intermediate","Low")
+vlmu1<-as.data.frame(cbind(strata,m,l,u))
+colnames(vlmu1)<-c("Strata","Surv.prob.", "95% CI-Lower","95% CI-Upper")
+vlmu1<-flextable(vlmu1)
+save_as_docx(vlmu1,path=paste(pat,"vlmu1.docx",sep=""))
+
+
+
+fit2 <- survfit(Surv(Time5Y, Event5Y) ~ INKM$`NEW RISK`, data=INKM)
+LogR2<-survdiff(Surv(Time5Y, Event5Y) ~ INKM$`NEW RISK`, data=INKM)$pvalue
+LogR2<-ifelse(LogR2<0.001,"<0.001",LogR2)
+psurv2<-round(summary(fit2,time=60)$surv,2)
+psurv2
+l<-round(summary(fit2,time=60)$lower,3)
+m<-round(summary(fit2,time=60)$surv,3)
+m<-c(m[4],m[1],m[2],m[3],m[5])
+u<-round(summary(fit2,time=60)$upper,3)
+strata<-c("Very hight risk","Hight risk","Intermediate risk","Low risk","Very low risk")
+vlmu2<-as.data.frame(cbind(strata,m,l,u))
+colnames(vlmu2)<-c("Strata","Surv.prob.", "95% CI-Lower","95% CI-Upper")
+vlmu2<-flextable(vlmu2)
+save_as_docx(vlmu2,path=paste(pat,"vlmu2.docx",sep=""))
+
+
+
+
+
+fitCapra3 <- survfit(Surv(Time5Y, Event5Y) ~ INKM$`UCSF-CAPRA GROUPS`, data=INKM)
+LogRCapra3<-survdiff(Surv(Time5Y, Event5Y) ~ INKM$`UCSF-CAPRA GROUPS`, data=INKM)$pvalue
+LogRCapra3<-ifelse(LogRCapra3<0.001,"<0.001",LogRCapra3)
+
+psurvC3<-round(summary(fitCapra3,time=60)$surv,2)
+psurvC3
+
+l<-round(summary(fitCapra3,time=60)$lower,3)
+m<-round(summary(fitCapra3,time=60)$surv,3)
+u<-round(summary(fitCapra3,time=60)$upper,3)
+strata<-c("Hight risk","Intermediate risk","Low risk")
+vlmu3<-as.data.frame(cbind(strata,m,l,u))
+colnames(vlmu3)<-c("Strata","Surv.prob.", "95% CI-Lower","95% CI-Upper")
+vlmu3<-flextable(vlmu3)
+save_as_docx(vlmu3,path=paste(pat,"vlmu3.docx",sep=""))
+
+
+
+
+fitCapra10 <- survfit(Surv(Time5Y, Event5Y) ~ INKM$Capra10, data=INKM)
+summary(fitCapra10,time=60,extend = TRUE)
+LogRCapra10<-survdiff(Surv(Time5Y, Event5Y) ~ INKM$Capra10, data=INKM)$pvalue
+LogRCapra10<-ifelse(LogRCapra10<0.001,"<0.001",LogRCapra10)
+psurvC10<-round(summary(fitCapra10,time=60)$surv,2)
+psurvC10
+
+l<-round(summary(fitCapra10,time=60)$lower,3)
+m<-round(summary(fitCapra10,time=60)$surv,3)
+u<-round(summary(fitCapra10,time=60)$upper,3)
+strata<-c("Score 0-1","Score 2","Score 3","Score 4","Score 5","Score 6","Score 7+")
+vlmu7<-as.data.frame(cbind(strata,m,l,u))
+colnames(vlmu7)<-c("Strata","Surv.prob.", "95% CI-Lower","95% CI-Upper")
+vlmu7<-flextable(vlmu7)
+save_as_docx(vlmu7,path=paste(pat,"vlmu7.docx",sep=""))
+
+
+
+fitCaprarow <- survfit(Surv(Time5Y, Event5Y) ~ INKM$`UCSF-CAPRA TOT POINTS` , data=INKM)
+summary(fitCaprarow,time=60,extend = TRUE)
+LogRCaprarow<-survdiff(Surv(Time5Y, Event5Y) ~ INKM$`UCSF-CAPRA TOT POINTS`, data=INKM)$pvalue
+LogRCaprarow<-ifelse(LogRCaprarow<0.001,"<0.001",LogRCaprarow)
+psurvCrow<-round(summary(fitCaprarow,time=60,extend = TRUE)$surv,2)
+psurvCrow
+
+l<-round(summary(fitCaprarow,time=60,extend = TRUE)$lower,3)
+m<-round(summary(fitCaprarow,time=60,extend = TRUE)$surv,3)
+u<-round(summary(fitCaprarow,time=60,extend = TRUE)$upper,3)
+strata<-c("Score 0","Score 1","Score 2","Score 3","Score 4","Score 5","Score 6","Score 7","Score 8","Score 9","Score 10")
+vlmurow<-as.data.frame(cbind(strata,m,l,u))
+colnames(vlmurow)<-c("Strata","Surv.prob.", "95% CI-Lower","95% CI-Upper")
+vlmurow<-flextable(vlmurow)
+save_as_docx(vlmurow,path=paste(pat,"vlmu_row.docx",sep=""))
+
+
+
+
+
+# Grafiche
+
+
+#-------- Overall
+tiff(file=paste(pat,"KM1_overall.tiff"))
+
+plot(fit0,col=6,
+     lwd=2,
+     mark.time=F,
+     xlab="Follow-up time in months",
+     ylab="Survival probability  Persistecy+ BRC",
+     main="BCR-free survival (Overall)")
+legend(2, .3, legend= c("Overall. Survival probability ad 60 months"),
+col=6, cex= .8,lwd=2, bty='n')
+
+
+dev.off()
+
+#-------- EAU
+
+tiff(file=paste(pat,"KM1_EAU.tiff"))
+
+
+plot(fit1, col=2:4,  lwd=2, 
+xlab= "Follow-up time in months",
+ylab ="BCR free survival",
+main = "BCR-free survival stratification \naccording to EAU Risk category",
+)
+legend(0, .3, legend= c("High risk",
+                         "Intermediate risk",
+                         "Low risk"),
+col=2:4, cex= .8,lwd=2, bty='n')
+
+text(50, .0, paste("Logrank test p.val=",LogR1),cex=0.8)
+ 
+
+
+dev.off()
+
+summary(fit1)
+
+#-------- PIPEN
+
+tiff(file=paste(pat,"KM1_New risk_corretto4.tiff"))
+
+
+plot(fit2, col=c("violet","blue","red","grey","green"),  lwd=2, 
+xlab= "Follow-up time in months",
+ylab ="BCR free survival",
+main = "BCR-free survival stratification\naccording to PIPEN Risk category")
+
+legend(0, 0.3, legend= c("Very Low risk",
+                         "Low risk",
+                         "Intermediate risk",
+                         "High risk",
+                         "Very High risk"),
+col=c("green","red","blue","violet","grey"), cex= .8,lwd=2, bty='n',
+      
+
+)
+
+#text(22,0.3, expression("PIPEN Risk Category       5Y Survival Probability"),cex=.8)
+text(50, .0, paste("Logrank test p.val=",LogR2),cex=0.8)
+ 
+
+dev.off()
+
+#-------- CAPRA 3
+
+tiff(file=paste(pat,"KM1_CAPRA3.tiff"))
+
+plot(fitCapra3, col=c("blue","red","green"),  lwd=2, 
+xlab= "Follow-up time in months",
+ylab ="BCR free survival",
+main = "BCR-free survival stratification\naccording to CAPRA risk category (3 categories)")
+
+
+ legend(0, 0.3, legend= c("Low risk",
+                         "Intermediate risk",
+                         "High risk"),
+col=c(c("green","red","blue")), cex= .8,lwd=2, bty='n',
+      
+)
+
+
+text(50, .0, paste("Logrank test p.val=",LogRCapra3),cex=0.8)
+ 
+
+dev.off()
+
+
+#-------- CAPRA10
+tiff(file=paste(pat,"KM1_CAPRA7.tiff"))
+
+plot(fitCapra10, col=c("violet","blue","red","grey","green","lightblue","black"),  lwd=2, 
+xlab= "Follow-up time in months",
+ylab ="BCR free survival",
+main = "BCR-free survival stratification\naccording to CAPRA risk category (7 categories)")
+
+
+ legend(0, 0.4, legend= c("Score 0-1","Score 2","Score 3","Score 4","Score 5","Score 6","Score 7+"),
+col=c("violet","blue","red","grey","green","lightblue","black"), cex= .8,lwd=2, bty='n',
+      
+)
+
+#text(22,0.3, expression("CAPRA Risk Category         5Y Survival Probability"),cex=.8)
+text(50, .0, paste("Logrank test p.val=",LogRCapra10),cex=0.8)
+ 
+
+dev.off()
+
+
+#-------- CAPRArow
+tiff(file=paste(pat,"KM1_CAPRA_row.tiff"))
+
+plot(fitCaprarow, col=c("violet","blue","red","grey","green","lightblue","black","darkgreen","yellow","pink","brown"),  lwd=2, 
+xlab= "Follow-up time in months",
+ylab ="BCR free survival",
+main = "BCR-free survival stratification\naccording to CAPRA risk category (11 categories)")
+
+
+ legend(0, 0.40, legend= c("Score 0","Score 1","Score 2","Score 3","Score 4","Score 5","Score 6","Score 7","Score 8","Score 9","Score 10"),
+col=c("violet","blue","red","grey","green","lightblue","black","darkgreen","yellow","pink","brown"), cex= .7,lwd=2, bty='n',
+      
+)
+
+#text(22,0.3, expression("CAPRA Risk Category         5Y Survival Probability"),cex=.8)
+text(40, .0, paste("Logrank test p.val=",LogRCaprarow),cex=0.8)
+ 
+
+dev.off()
+
+
+
+```
+
+
+# ==TRAINING 
+
+# Randomization
+```{r}
+
+pat<-"C:/Users/veneg/OneDrive/Documenti/Ieo/Luzzago - Classi di rischio/Luzzago - Classi di rischio/Fase III/Allegati/TR/"  
+tic<-0
+
+ds<-"TR"
+
+
+#set.seed(123)
+set.seed(258)
+
+n<-floor(1459*.70)
+x = sample(c(1:1459), size = n, replace = FALSE)
+TR<-INKM[x,]
+TE<-INKM[-x,]
+
+InputTR<-Input_KM[x,]
+InputTE<-Input_KM[-x,]
+
+
+TR$Dataset<-rep("TR",1021)
+TE$Dataset<-rep("TE",438)
+
+InputTR<-TR%>%select(-c("Event5Y","Time5Y"))
+InputTE<-TE%>%select(-c("Event5Y","Time5Y"))
+
+TRTE<-rbind.data.frame(InputTR,InputTE)
+
+
+
+#pat<-"C:/Users/ieo6025/OneDrive - Istituto Europeo di Oncologia/Documenti/0Lavori/Luzzago - Classi di rischio/Fase II/Codice/Allegati/TR/"
+  
+Input<-InputTR
+
+```
+
+# 1 -TABles
+
+```{r}
+
+set.seed(3180)
+
+# 1 PIPEN 2 EAU 3 CAPRA 4 MSKCC 5 Partin
+
+fisher.test.simulate.p.values <- function(data, variable, by, ...) {
+  result <- list()
+  test_results <- stats::fisher.test(data[[variable]], data[[by]], simulate.p.value = TRUE, B=2000)
+  result$p <- test_results$p.value
+  result$test <- test_results$method
+  result
+}
+
+
+Fg<-0
+
+if(Fg==1){
+
+library(dplyr)
+library(flextable)
+data.Tab1a<-cbind(Input[,c(2:12,22)])
+data.Tab1b<-Input[,13:22]
+data.Tab1c<-Input[,c("UCSF-CAPRA Age", "UCSF-CAPRA PSA", "UCSF-CAPRA cT", "UCSF-CAPRA % cores", "UCSF-CAPRA GS","MSKCC Age",	"MSKCC PSA",	"MSKCC Positive Cores",	"MSKCC Negative Cores",	"MSKCC cT",	"MSKCC GS Primary Pattern",	"MSKCC GS Secondary Pattern","PARTIN PSA",	"PARTIN cT",	"PARTIN ISUP","NEW RISK")]
+
+data.Tab2a<-Input[,2:12]
+data.Tab2b<-Input[,c(2,13:22)]
+data.Tab2c<-Input[,c("UCSF-CAPRA Age", "UCSF-CAPRA PSA", "UCSF-CAPRA cT", "UCSF-CAPRA % cores", "UCSF-CAPRA GS","MSKCC Age",	"MSKCC PSA",	"MSKCC Positive Cores",	"MSKCC Negative Cores",	"MSKCC cT",	"MSKCC GS Primary Pattern",	"MSKCC GS Secondary Pattern","PARTIN PSA",	"PARTIN cT",	"PARTIN ISUP","EAU risk category")]
+
+
+data.Tab3a<-Input[,c(35,2:12)]
+data.Tab3b<-Input[,c(35,13:22)]
+data.Tab3c<-Input[,c("UCSF-CAPRA Age", "UCSF-CAPRA PSA", "UCSF-CAPRA cT", "UCSF-CAPRA % cores","% positive cores", "UCSF-CAPRA GS","MSKCC Age",	"MSKCC PSA",	"MSKCC Positive Cores",	"MSKCC Negative Cores",	"MSKCC cT",	"MSKCC GS Primary Pattern",	"MSKCC GS Secondary Pattern","PARTIN PSA",	"PARTIN cT",	"PARTIN ISUP","UCSF-CAPRA GROUPS")]
+
+
+
+
+
+
+
+# ---- PIPEN
+
+
+library(gtsummary)
+set_gtsummary_theme(theme_gtsummary_compact())
+
+#Tab1<-gtsummary::tbl_summary(Input[,2:22],by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ,  all_categorical() ~ "{n}  ({p}%)"))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+Tab1a<-gtsummary::tbl_summary(data.Tab1a,by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ,  all_categorical() ~ "{n}  ({p}%)"))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+Tab1b<-gtsummary::tbl_summary(data.Tab1b,by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ,  all_categorical() ~ "{n}  ({p}%)"))%>%add_overall()%>%add_p(test = list(all_categorical() ~ "fisher.test.simulate.p.values"))%>%as_flex_table()
+
+Tab1c<-gtsummary::tbl_summary(data.Tab1c,by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p(test = list(all_categorical() ~ "fisher.test.simulate.p.values"))%>%as_flex_table()
+
+
+
+Tab1a<-set_caption(Tab1a, caption = "Tab1a - Clinical characteristics by New Risk category", autonum = 1)
+save_as_docx(Tab1a,path=paste(pat,"Tab1a.docx",sep=""))
+
+Tab1b<-set_caption(Tab1b, caption = "Tab1b - Clinical characteristics by New Risk category", autonum = 1)
+save_as_docx(Tab1b,path=paste(pat,"Tab1b.docx",sep=""))
+
+Tab1c<-set_caption(Tab1c, caption = "Tab1c - Clinical characteristics by New Risk category", autonum = 1)
+save_as_docx(Tab1c,path=paste(pat,"Tab1c.docx",sep=""))
+
+
+# ho invertito i nomi sistemato nel comando save
+
+
+#Tab2<-gtsummary::tbl_summary(Input[,2:22],by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+# ---- EAU
+
+
+Tab2a<-gtsummary::tbl_summary(data.Tab2a,by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+Tab2b<-gtsummary::tbl_summary(data.Tab2b,by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p(test = list(all_categorical() ~ "fisher.test.simulate.p.values"))%>%as_flex_table()
+
+
+Tab2c<-gtsummary::tbl_summary(data.Tab2c,by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+Tab2a<-set_caption(Tab2a, caption = "Tab2a - Clinical characteristics by EAU Risk category", autonum = 1)
+save_as_docx(Tab2a,path=paste(pat,"Tab2a.docx",sep=""))
+
+Tab2b<-set_caption(Tab2b, caption = "Tab2b - Clinical characteristics by EAU Risk category", autonum = 1)
+save_as_docx(Tab2b,path=paste(pat,"Tab2b.docx",sep=""))
+
+Tab2c<-set_caption(Tab2c, caption = "Tab2c - Clinical characteristics by EAU Risk category", autonum = 1)
+save_as_docx(Tab2c,path=paste(pat,"Tab2c.docx",sep=""))
+
+
+
+
+# ---- CAPRA
+Tab3a<-gtsummary::tbl_summary(data.Tab3a,by= `UCSF-CAPRA GROUPS`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+Tab3b<-gtsummary::tbl_summary(data.Tab3b,by= `UCSF-CAPRA GROUPS`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p(test = list(all_categorical() ~ "fisher.test.simulate.p.values"))%>%as_flex_table()
+
+
+Tab3c<-gtsummary::tbl_summary(data.Tab3c,by= `UCSF-CAPRA GROUPS`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})",  all_categorical() ~ "{n}  ({p}%)" ))%>%add_overall()%>%add_p()%>%as_flex_table()
+
+
+Tab3a<-set_caption(Tab3a, caption = "Tab3a - Clinical characteristics by CAPRA Risk category (3 categories)", autonum = 1)
+save_as_docx(Tab3a,path=paste(pat,"Tab3a.docx",sep=""))
+
+Tab3b<-set_caption(Tab3b, caption = "Tab3b - Clinical characteristics by CAPRA Risk category (3 categories)", autonum = 1)
+save_as_docx(Tab3b,path=paste(pat,"Tab3b.docx",sep=""))
+
+Tab3c<-set_caption(Tab3c, caption = "Tab3c - Clinical characteristics by CAPRA Risk category (3 categories)", autonum = 1)
+save_as_docx(Tab3c,path=paste(pat,"Tab3c.docx",sep=""))
+
+
+
+
+
+
+
+
+
+}
+
+
+T.fisher_ct<-table(Input$pT,Input$`NEW RISK`)
+set.seed(3180)
+fisher.test(T.fisher_ct,simulate.p.value=TRUE,B=1000)
+
+
+T.fisher_Capra_age<-table(Input$`UCSF-CAPRA Age`,Input$`NEW RISK`)
+set.seed(3180)
+fisher.test(T.fisher_Capra_age,simulate.p.value=TRUE,B=1000)
+
+
+
+```
+
+
+# Survival
+```{r}
+library(survival)
+library(readxl)
+library(dplyr)
+
+
+
+
+Input_KM <- Input
+
+```
+
+# Filter  5 y
+```{r}
+
+table(Input_KM$`Persistenza + recidiva biochimica`)
+
+
+
+
+Input_KM<- Input_KM%>%mutate(Event5Y= case_when(`Time to PERSISTENZA + BCR DA USARE` > 60  ~ 0 ,
+`Time to PERSISTENZA + BCR DA USARE` <= 60   ~ `Persistenza + recidiva biochimica`))
+
+
+
+Input_KM<- Input_KM%>%mutate(Time5Y = case_when(
+  `Time to PERSISTENZA + BCR DA USARE` > 60 ~ 60,
+    `Time to PERSISTENZA + BCR DA USARE` <= 60 ~  `Time to PERSISTENZA + BCR DA USARE`))
+
+table(Input_KM$Event5Y)
+
+
+#Input_KM<-Input_KM[,-3]
+#Input_KM<-Input_KM[,-18]
+
+
+#Input_KM$`Time to PERSISTENZA + BCR DA USARE`<-Input_KM$`Time5Y <- ...`
+#Input_KM$`Persistenza + recidiva biochimica`<- Input_KM$`Event5Y <- ...`
+
+
+
+
+
+
+table(Input_KM$`Persistenza + recidiva biochimica`)
+
+
+
+
+```
+#2 -Prepare SURV data
+
+
+```{r}
+INKM<-Input_KM
+
+#INKM<-cbind.data.frame(Input_KM$`Time to PERSISTENZA + BCR DA USARE`,Input_KM$`Persistenza + recidiva biochimica`, Input_KM$`EAU risk category` )
+
+
+#INKM<-cbind.data.frame(Input_KM$`Time to PERSISTENZA + BCR DA USARE`,Input_KM$`Persistenza + recidiva biochimica`,Input_KM$`EAU risk category`)
+
+
+#colnames(INKM)<-c("Time","Event","EAU")
+
+```
+
+
+
+# KM
+
+```{r}
+
+library(survival)
+library(ggplot2)
+library(survminer)
+library(flextable)
+
+fit0 <- survfit(Surv(Time5Y, Event5Y) ~ 1, data=INKM)
+l<-round(summary(fit0,time=60)$lower,3)
+m<-round(summary(fit0,time=60)$surv,3)
+u<-round(summary(fit0,time=60)$upper,3)
+vlmu0<-as.data.frame(t(c("60",m,l,u)))
+colnames(vlmu0)<-c("Time","Surv.prob.", "Lower","Upper")
+vlmu0<-flextable(vlmu0)
+save_as_docx(vlmu0,path=paste(pat,"vlmu0.docx",sep=""))
+
+
+fit1 <- survfit(Surv(Time5Y, Event5Y) ~ INKM$`EAU risk category`, data=INKM)
+LogR1<-survdiff(Surv(Time5Y, Event5Y) ~ INKM$`EAU risk category`, data=INKM)$pvalue
+LogR1<-ifelse(LogR1<0.001,"<0.001",LogR1)
+
+l<-round(summary(fit1,time=60)$lower,3)
+m<-round(summary(fit1,time=60)$surv,3)
+u<-round(summary(fit1,time=60)$upper,3)
+strata<-c("Hight","Intermediate","Low")
+vlmu1<-as.data.frame(cbind(strata,m,l,u))
+colnames(vlmu1)<-c("Strata","Surv.prob.", "95% CI-Lower","95% CI-Upper")
+vlmu1<-flextable(vlmu1)
+save_as_docx(vlmu1,path=paste(pat,"vlmu1.docx",sep=""))
+
+
+
+fit2 <- survfit(Surv(Time5Y, Event5Y) ~ INKM$`NEW RISK`, data=INKM)
+LogR2<-survdiff(Surv(Time5Y, Event5Y) ~ INKM$`NEW RISK`, data=INKM)$pvalue
+LogR2<-ifelse(LogR2<0.001,"<0.001",LogR2)
+psurv2<-round(summary(fit2,time=60)$surv,2)
+psurv2
+l<-round(summary(fit2,time=60)$lower,3)
+m<-round(summary(fit2,time=60)$surv,3)
+m<-c(m[4],m[1],m[2],m[3],m[5])
+u<-round(summary(fit2,time=60)$upper,3)
+strata<-c("Very hight risk","Hight risk","Intermediate risk","Low risk","Very low risk")
+vlmu2<-as.data.frame(cbind(strata,m,l,u))
+colnames(vlmu2)<-c("Strata","Surv.prob.", "95% CI-Lower","95% CI-Upper")
+vlmu2<-flextable(vlmu2)
+save_as_docx(vlmu2,path=paste(pat,"vlmu2.docx",sep=""))
+
+
+
+
+
+fitCapra3 <- survfit(Surv(Time5Y, Event5Y) ~ INKM$`UCSF-CAPRA GROUPS`, data=INKM)
+LogRCapra3<-survdiff(Surv(Time5Y, Event5Y) ~ INKM$`UCSF-CAPRA GROUPS`, data=INKM)$pvalue
+LogRCapra3<-ifelse(LogRCapra3<0.001,"<0.001",LogRCapra3)
+
+psurvC3<-round(summary(fitCapra3,time=60)$surv,2)
+psurvC3
+
+l<-round(summary(fitCapra3,time=60)$lower,3)
+m<-round(summary(fitCapra3,time=60)$surv,3)
+u<-round(summary(fitCapra3,time=60)$upper,3)
+strata<-c("Hight risk","Intermediate risk","Low risk")
+vlmu3<-as.data.frame(cbind(strata,m,l,u))
+colnames(vlmu3)<-c("Strata","Surv.prob.", "95% CI-Lower","95% CI-Upper")
+vlmu3<-flextable(vlmu3)
+save_as_docx(vlmu3,path=paste(pat,"vlmu3.docx",sep=""))
+
+
+
+
+fitCapra10 <- survfit(Surv(Time5Y, Event5Y) ~ INKM$Capra10, data=INKM)
+summary(fitCapra10,time=60,extend = TRUE)
+LogRCapra10<-survdiff(Surv(Time5Y, Event5Y) ~ INKM$Capra10, data=INKM)$pvalue
+LogRCapra10<-ifelse(LogRCapra10<0.001,"<0.001",LogRCapra10)
+psurvC10<-round(summary(fitCapra10,time=60)$surv,2)
+psurvC10
+
+l<-round(summary(fitCapra10,time=60)$lower,3)
+m<-round(summary(fitCapra10,time=60)$surv,3)
+u<-round(summary(fitCapra10,time=60)$upper,3)
+strata<-c("Score 0-1","Score 2","Score 3","Score 4","Score 5","Score 6","Score 7+")
+vlmu7<-as.data.frame(cbind(strata,m,l,u))
+colnames(vlmu7)<-c("Strata","Surv.prob.", "95% CI-Lower","95% CI-Upper")
+vlmu7<-flextable(vlmu7)
+save_as_docx(vlmu7,path=paste(pat,"vlmu7.docx",sep=""))
+
+
+
+fitCaprarow <- survfit(Surv(Time5Y, Event5Y) ~ INKM$`UCSF-CAPRA TOT POINTS` , data=INKM)
+summary(fitCaprarow,time=60,extend = TRUE)
+LogRCaprarow<-survdiff(Surv(Time5Y, Event5Y) ~ INKM$`UCSF-CAPRA TOT POINTS`, data=INKM)$pvalue
+LogRCaprarow<-ifelse(LogRCaprarow<0.001,"<0.001",LogRCaprarow)
+psurvCrow<-round(summary(fitCaprarow,time=60,extend = TRUE)$surv,2)
+psurvCrow
+
+l<-round(summary(fitCaprarow,time=60,extend = TRUE)$lower,3)
+m<-round(summary(fitCaprarow,time=60,extend = TRUE)$surv,3)
+u<-round(summary(fitCaprarow,time=60,extend = TRUE)$upper,3)
+strata<-c("Score 0","Score 1","Score 2","Score 3","Score 4","Score 5","Score 6","Score 7","Score 8","Score 9","Score 10")
+vlmurow<-as.data.frame(cbind(strata,m,l,u))
+colnames(vlmurow)<-c("Strata","Surv.prob.", "95% CI-Lower","95% CI-Upper")
+vlmurow<-flextable(vlmurow)
+save_as_docx(vlmurow,path=paste(pat,"vlmu_row.docx",sep=""))
+
+
+
+
+
+# Grafic
+
+
+#-------- Overall
+tiff(file=paste(pat,"KM1_overall.tiff"))
+
+plot(fit0,col=6,
+     lwd=2,
+     mark.time=F,
+     xlab="Follow-up time in months",
+     ylab="Survival probability  Persistecy+ BRC",
+     main="BCR-free survival (Overall)")
+legend(2, .3, legend= c("Overall. Survival probability ad 60 months"),
+col=6, cex= .8,lwd=2, bty='n')
+
+
+dev.off()
+
+#-------- EAU
+
+tiff(file=paste(pat,"KM1_EAU.tiff"))
+
+
+plot(fit1, col=2:4,  lwd=2, 
+xlab= "Follow-up time in months",
+ylab ="BCR free survival",
+main = "BCR-free survival stratification \naccording to EAU Risk category",
+)
+legend(0, .3, legend= c("High risk",
+                         "Intermediate risk",
+                         "Low risk"),
+col=2:4, cex= .8,lwd=2, bty='n')
+
+text(50, .0, paste("Logrank test p.val=",LogR1),cex=0.8)
+ 
+
+
+dev.off()
+
+summary(fit1)
+
+#-------- PIPEN
+
+tiff(file=paste(pat,"KM1_New risk_corretto4.tiff"))
+
+
+plot(fit2, col=c("violet","blue","red","grey","green"),  lwd=2, 
+xlab= "Follow-up time in months",
+ylab ="BCR free survival",
+main = "BCR-free survival stratification\naccording to PIPEN Risk category")
+
+legend(0, 0.3, legend= c("Very Low risk",
+                         "Low risk",
+                         "Intermediate risk",
+                         "High risk",
+                         "Very High risk"),
+col=c("green","red","blue","violet","grey"), cex= .8,lwd=2, bty='n',
+      
+
+)
+
+#text(22,0.3, expression("PIPEN Risk Category       5Y Survival Probability"),cex=.8)
+text(50, .0, paste("Logrank test p.val=",LogR2),cex=0.8)
+ 
+
+dev.off()
+
+#-------- CAPRA 3
+
+tiff(file=paste(pat,"KM1_CAPRA3.tiff"))
+
+plot(fitCapra3, col=c("blue","red","green"),  lwd=2, 
+xlab= "Follow-up time in months",
+ylab ="BCR free survival",
+main = "BCR-free survival stratification\naccording to CAPRA risk category (3 categories)")
+
+
+ legend(0, 0.3, legend= c("Low risk",
+                         "Intermediate risk",
+                         "High risk"),
+col=c(c("green","red","blue")), cex= .8,lwd=2, bty='n',
+      
+)
+
+
+text(50, .0, paste("Logrank test p.val=",LogRCapra3),cex=0.8)
+ 
+
+dev.off()
+
+
+#-------- CAPRA10
+tiff(file=paste(pat,"KM1_CAPRA7.tiff"))
+
+plot(fitCapra10, col=c("violet","blue","red","grey","green","lightblue","black"),  lwd=2, 
+xlab= "Follow-up time in months",
+ylab ="BCR free survival",
+main = "BCR-free survival stratification\naccording to CAPRA risk category (7 categories)")
+
+
+ legend(0, 0.4, legend= c("Score 0-1","Score 2","Score 3","Score 4","Score 5","Score 6","Score 7+"),
+col=c("violet","blue","red","grey","green","lightblue","black"), cex= .8,lwd=2, bty='n',
+      
+)
+
+#text(22,0.3, expression("CAPRA Risk Category         5Y Survival Probability"),cex=.8)
+text(50, .0, paste("Logrank test p.val=",LogRCapra10),cex=0.8)
+ 
+
+dev.off()
+
+
+#-------- CAPRArow
+tiff(file=paste(pat,"KM1_CAPRA_row.tiff"))
+
+plot(fitCaprarow, col=c("violet","blue","red","grey","green","lightblue","black","darkgreen","yellow","pink","brown"),  lwd=2, 
+xlab= "Follow-up time in months",
+ylab ="BCR free survival",
+main = "BCR-free survival stratification\naccording to CAPRA risk category (11 categories)")
+
+
+ legend(8, 0.40, legend= c("Score 0","Score 1","Score 2","Score 3","Score 4","Score 5","Score 6","Score 7","Score 8","Score 9","Score 10"),
+col=c("violet","blue","red","grey","green","lightblue","black","darkgreen","yellow","pink","brown"), cex= .7,lwd=2, bty='n',
+      
+)
+
+#text(22,0.3, expression("CAPRA Risk Category         5Y Survival Probability"),cex=.8)
+text(50, .0, paste("Logrank test p.val=",LogRCaprarow),cex=0.8)
+ 
+
+dev.off()
+
+
+
+```
+
+
+
+
+
+#3COX
+
+## COX Base (EAU)
+
+```{r}
+S<-Surv(INKM$Time5Y,INKM$Event5Y)
+
+
+#Modbase<-coxph(S~`PSA category`+`cT coded`+cN+ISUP,data=INKM,x=T,y=T)
+
+Modbase<-coxph(S~`PSA iniziale`+`cT coded`+cN+ISUP,data=INKM,x=T)
+
+summary(Modbase)
+
+Tab4<-tbl_regression(Modbase,exponentiate=TRUE)%>%add_glance_table(include="concordance")%>%as_flex_table()
+Tab4<-set_caption(Tab4, caption = "Tab4 - Cox Model -base- TR", autonum = 4)
+
+save_as_docx(Tab4,path=paste(pat,"Tab5_Cox_base.docx",sep=""))
+
+INKMTR<-INKM
+
+```
+
+
+## COX Complete Model (età, ISUP, cN, PSA-density, lesion size, PI-RADS category, EPE category); 
+```{r}
+
+
+Modpieno<-coxph(S~Eta+ISUP+cN+ `PSAD cat3`+`Size IDL`+ `PI_RADS category`+`EPE category`,data=INKM,x=T)
+
+
+summary(Modpieno)
+
+set_gtsummary_theme(theme_gtsummary_compact())
+
+Tab5<-tbl_regression(Modpieno,exponentiate=TRUE)%>%add_glance_table(include="concordance")%>%as_flex_table()
+Tab5<-set_caption(Tab5, caption = "Tab5 - Cox Model -full- TR", autonum = 5)
+save_as_docx(Tab5,path=paste(pat,"Tab5_Cox_completo.docx",sep=""))
+```
+
+## COX Significative
+ex:ISUP+cN+Psa_density_cat+PI_RADS+EPE
+```{r}
+library(gtsummary)
+
+
+ModSign<-coxph(S~ ISUP+cN+`PSAD cat3`+ `PI_RADS category`+`EPE category`,data=INKM,x=T)
+summary(ModSign)
+
+set_gtsummary_theme(theme_gtsummary_compact())
+Tab6<-tbl_regression(ModSign,exponentiate = TRUE)%>%add_glance_table(include="concordance")%>%as_flex_table()
+Tab6<-set_caption(Tab6, caption = "Tab6 - Cox Model -significativo - TR", autonum = 6)
+save_as_docx(Tab6,path=paste(pat,"Tab6_Cox_significativo.docx",sep=""))
+
+
+
+
+```
+
+## COX CAPRA
+UCSF-CAPRA Age, UCSF-CAPRA PSA, UCSF-CAPRA cT, UCSF-CAPRA % cores, UCSF-CAPRA GS.
+
+```{r}
+
+ModCapra<-coxph(S~ `UCSF-CAPRA Age`+`UCSF-CAPRA PSA`+ `UCSF-CAPRA cT`+ `UCSF-CAPRA % cores`+ `UCSF-CAPRA GS`,data=INKM,x=T)
+
+summary(ModCapra)
+
+
+set_gtsummary_theme(theme_gtsummary_compact())
+Tab_CAPRAmodel<-tbl_regression(ModCapra,exponentiate = TRUE)%>%add_glance_table(include="concordance")%>%as_flex_table()
+Tab_CAPRAmodel<-set_caption(Tab_CAPRAmodel, caption = "Tab_XX - Cox CAPRA", autonum = 6)
+save_as_docx(Tab_CAPRAmodel,path=paste(pat,"TabXX_Cox_CAPRA.docx",sep=""))
+
+
+
+```
+
+## COX MSKCC
+MSKCC Age	MSKCC PSA	MSKCC Positive Cores	MSKCC Negative Cores	MSKCC cT	MSKCC GS Primary Pattern	MSKCC GS Secondary Pattern
+
+```{r}
+ModSK<-coxph(S~`MSKCC Age`+	`MSKCC PSA`+`MSKCC Positive Cores`+`MSKCC Negative Cores`+`MSKCC cT`+`MSKCC GS Primary Pattern`+`MSKCC GS Secondary Pattern`,data=INKM,x=T)
+
+summary(ModSK)
+
+set_gtsummary_theme(theme_gtsummary_compact())
+Tab_MSKCC<-tbl_regression(ModSK,exponentiate = TRUE)%>%add_glance_table(include="concordance")%>%as_flex_table()
+Tab_MSKCC<-set_caption(Tab_MSKCC, caption = "Tab_XX - Cox MSKCC", autonum = 6)
+save_as_docx(Tab_MSKCC,path=paste(pat,"TabXX_Cox_MSKCC.docx",sep=""))
+
+
+
+```
+
+## COX PARTIN
+PARTIN PSA	PARTIN cT	PARTIN ISUP
+
+
+```{r}
+
+INKM$`PARTIN cT`<-as.factor(INKM$`PARTIN cT`)
+
+ModPartin<-coxph(S~`PARTIN PSA`+	`PARTIN cT`+`PARTIN ISUP`,data=INKM,x=T)
+
+summary(ModPartin)
+
+set_gtsummary_theme(theme_gtsummary_compact())
+Tab_Partin<-tbl_regression(ModPartin,exponentiate = TRUE)%>%add_glance_table(include="concordance")%>%as_flex_table()
+Tab_Partin<-set_caption(Tab_Partin, caption = "Tab_XX - Cox Partin", autonum = 6)
+save_as_docx(Tab_Partin,path=paste(pat,"TabXX_Cox_Partin.docx",sep=""))
+
+
+
+```
+
+
+
+# C index bootstrap
+
+```{r}
+library(bootstrap)
+
+
+Predict_Pipen<-predict(ModSign,newdata=INKMTR,type="lp")
+Predict_EAU<-predict(Modbase,newdata=INKMTR,type="lp")
+Predict_Capra<-predict(ModCapra,newdata=INKMTR,type="lp")
+Predict_MSKCC<-predict(ModSK,newdata=INKMTR,type="lp")
+Predict_Partin<-predict(ModPartin ,newdata=INKMTR,type="lp")
+
+TE_pipen<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_Pipen,x=T,y=T)
+a_pip<-summary(TE_pipen)
+TE_EAU<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_EAU,data=INKMTR,x=T,y=T)
+a_eau<-summary(TE_EAU)
+TE_Capra<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_Capra,data=INKMTR,x=T,y=T)
+a_Capra<-summary(TE_Capra)
+TE_MSKCC<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_MSKCC,data=INKMTR,x=T,y=T)
+a_MSKCC<-summary(TE_MSKCC)
+TE_Partin<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_Partin,data=INKMTR,x=T,y=T)
+a_partin<-summary(TE_Partin)
+
+Data<-cbind.data.frame(INKMTR$Time5Y,INKMTR$Event5Y,Predict_Pipen,Predict_EAU,Predict_Capra,Predict_MSKCC,Predict_Partin)
+colnames(Data)<-c("Time","Event","Predict_pipen","Predict_EAU","Predict_Capra","Preedict_MSKCC","Predict_Partin")
+
+
+#---- PIPEN
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,3],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+set.seed(80)
+
+bca<-bcanon(1:1021,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_pip$concordance[1]
+x_pipen<-cbind.data.frame(m,t(q))
+x_pipen
+
+
+# ----EAU
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,4],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+set.seed(3180)
+
+bca<-bcanon(1:1021,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_eau$concordance[1]
+x_EAU<-cbind.data.frame(m,t(q))
+x_EAU
+
+# ------- CAPRA
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,5],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+set.seed(3180)
+
+bca<-bcanon(1:1021,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_Capra$concordance[1]
+x_Capra<-cbind.data.frame(m,t(q))
+x_Capra
+
+
+# ------- MSKCC
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,6],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+
+set.seed(3180)
+bca<-bcanon(1:1021,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_MSKCC$concordance[1]
+x_MSKCC<-cbind.data.frame(m,t(q))
+x_MSKCC
+
+# ------- Partin
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,7],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+
+set.seed(3180)
+bca<-bcanon(1:1021,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_partin$concordance[1]
+x_Partin<-cbind.data.frame(m,t(q))
+x_Partin
+#-------------
+
+Test_C<-rbind.data.frame(x_pipen,x_EAU,x_Capra,x_MSKCC,x_Partin)
+Test_C<-round(Test_C,3)
+leg<-c("P.I.P.E.N.","EAU","CAPRA","MSKCC","PARTIN")
+Test_C<-cbind.data.frame(leg,Test_C)
+colnames(Test_C)<-c("Model","Estimated","Lower 95% CI","Upper 95% CI")
+Test_C<-flextable(Test_C)
+save_as_docx(Test_C,path=paste(pat,"TRAINING_C_Index.docx",sep=""))
+
+```
+
+
+# LRTEST PIPEN vs EAU
+
+```{r}
+Modbase_cont<-coxph(S~`PSA iniziale`+`cT coded`+cN+ISUP,data=INKM,x=T)
+
+summary(Modbase_cont)
+
+library(nonnestcox)
+
+a<-plrtest(Modbase_cont,ModSign,nested= F,adjusted="AIC")
+
+C1<-c("PIPEN","EAU",round(a$pLRTB,4))
+
+```
+
+
+# LRTEST PIPEN vs CAPRA
+Comparing nonnested Cox models 
+J. P. Fine
+Biometrika, Volume 89, Issue 3, August 2002, Pages 635–648, https://doi.org/10.1093/biomet/89.3.635
+Published: 01 August 2002
+```{r}
+
+plrtest(ModCapra,ModSign,nested = F,adjusted="AIC")
+a<-plrtest(ModCapra,ModSign,nested = F,adjusted="BIC")
+C2<-c("PIPEN","CAPRA",round(a$pLRTB,4))
+
+```
+
+# LRTEST PIPEN vs MSKCC
+```{r}
+
+plrtest(ModSK,ModSign,nested = F,adjusted="AIC")
+a<-plrtest(ModSK,ModSign,nested = F,adjusted="BIC")
+C3<-c("PIPEN","MSKCC",round(a$pLRTB,4))
+
+
+```
+
+# LRTEST PIPEN vs PARTIN
+```{r}
+
+plrtest(ModPartin,ModSign,nested = F,adjusted="AIC")
+a<-plrtest(ModPartin,ModSign,nested = F,adjusted="BIC")
+C4<-c("PIPEN","PARTIN",round(a$pLRTB,4))
+
+
+```
+
+
+# LRTs confronto
+```{r}
+C<-rbind.data.frame(C1,C2,C3,C4)
+
+colnames(C)<-c("Model1","Model2","p.value")
+C<-C%>%mutate(`Model1 fit better than Model2`= if_else(p.value<=0.05,"YES","NO"))
+C<-flextable(C)
+save_as_docx(C,path=paste(pat,"TabXX_LRTraining - sinossi.docx",sep=""))
+C
+
+```
+
+
+#RUN
+```{r}
+
+```
+
+
+
+#=== TEST
+
+```{r}
+pat<-"C:/Users/veneg/OneDrive/Documenti/Ieo/Luzzago - Classi di rischio/Luzzago - Classi di rischio/Fase III/Allegati/TE/"  
+```
+
+
+
+# TABles
+```{r}
+
+set.seed(3180)
+
+library(dplyr)
+
+Fg<-1
+
+if(Fg==1){
+
+data.Tab1a<-cbind(Input[,c(2:12,22)])
+data.Tab1b<-Input[,13:23]
+
+data.Tab2a<-Input[,2:12]
+data.Tab2b<-Input[,c(2,13:23)]
+
+
+
+
+library(gtsummary)
+set_gtsummary_theme(theme_gtsummary_compact())
+
+Tab1<-gtsummary::tbl_summary(Input[,2:23],by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ))%>%add_overall()%>%as_flex_table()
+
+Tab1a<-gtsummary::tbl_summary(data.Tab1a,by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ))%>%add_overall()%>%as_flex_table()
+
+
+Tab1b<-gtsummary::tbl_summary(data.Tab1b,by= `NEW RISK`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ))%>%add_overall()%>%as_flex_table()
+
+
+Tab1a<-set_caption(Tab1a, caption = "Tab1a - Clinical characteristics by New Risk classification", autonum = 1)
+save_as_docx(Tab1a,path=paste(pat,"Tab1a.docx",sep=""))
+
+Tab1b<-set_caption(Tab1b, caption = "Tab1b - Clinical characteristics by New Risk classification", autonum = 1)
+save_as_docx(Tab1a,path=paste(pat,"Tab1b.docx",sep=""))
+
+
+
+
+
+Tab2<-gtsummary::tbl_summary(Input[,2:23],by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ))%>%add_overall()%>%as_flex_table()
+
+
+Tab2a<-gtsummary::tbl_summary(data.Tab2a,by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ))%>%add_overall()%>%as_flex_table()
+
+
+Tab2b<-gtsummary::tbl_summary(data.Tab2b,by= `EAU risk category`,statistic = list(all_continuous() ~ "{median} ({p25}, {p75})" ))%>%add_overall()%>%as_flex_table()
+
+
+Tab2a<-set_caption(Tab2a, caption = "Tab2a - Clinical characteristics by New Risk classification", autonum = 1)
+save_as_docx(Tab2a,path=paste(pat,"Tab2a.docx",sep=""))
+
+Tab2b<-set_caption(Tab2b, caption = "Tab2b - Clinical characteristics by New Risk classification", autonum = 1)
+
+#save_as_docx(Tab2a,path=paste(pat,"Tab2b.docx",sep=""))
+
+
+}
+
+
+
+
+```
+
+# Survival
+```{r}
+library(survival)
+library(readxl)
+library(dplyr)
+
+
+
+
+Input_KM <- TE
+
+```
+
+
+#2 -Prepars SURV data
+
+
+```{r}
+INKM<-Input_KM
+
+#INKM<-cbind.data.frame(Input_KM$`Time to PERSISTENZA + BCR DA USARE`,Input_KM$`Persistenza + recidiva biochimica`, Input_KM$`EAU risk category` )
+
+
+#INKM<-cbind.data.frame(Input_KM$`Time to PERSISTENZA + BCR DA USARE`,Input_KM$`Persistenza + recidiva biochimica`,Input_KM$`EAU risk category`)
+
+
+#colnames(INKM)<-c("Time","Event","EAU")
+INKMTE<-INKM
+
+```
+
+
+
+
+
+
+
+
+# Cross Table
+
+```{r}
+Input_KM_C<-Input_KM%>%mutate(PIPEN=case_when(`NEW RISK`=="VLR"~"1- VLR",
+                                                 `NEW RISK`=="LR"~"2- LR",
+                                                 `NEW RISK`=="IR"~"3- IR",
+                                                 `NEW RISK`=="HR"~"4- HR",
+                                                 `NEW RISK`=="VHR"~"5- VHR"))%>%mutate(
+                                                 EAU= case_when(`EAU risk category`=="Low"~"1- Low", `EAU risk category`=="Intermediate"~"2- Intermediate",`EAU risk category`=="High"~"3- High"))
+                                                 
+Input_KM_C<-Input_KM_C%>% mutate(CAPRA=case_when(`UCSF-CAPRA GROUPS`=="Low (0-2)"~ "1- Low (0-2)",
+                        `UCSF-CAPRA GROUPS`=="Intermediate (3-5)"~"2- Intermediate (3-5)",
+                        `UCSF-CAPRA GROUPS`=="High (6-10)"~"3- High (6-10)")
+                                                 )
+
+Tab3<-  Input_KM_C%>%tbl_cross(row = PIPEN, col = EAU , percent = "cell") %>%
+  add_p()%>%as_flex_table()
+
+Tab3<-set_caption(Tab3, caption = "TabXX - Cross table EAU categories/New risk Classes", autonum = 3)
+
+save_as_docx(Tab3,path=paste(pat,"Cross-Tab3.docx",sep=""))
+
+
+fisher.test.simulate.p.values <- function(data, variable, by, ...) {
+  result <- list()
+  test_results <- stats::fisher.test(data[[variable]], data[[by]], simulate.p.value = TRUE, B=2000)
+  result$p <- test_results$p.value
+  result$test <- test_results$method
+  result
+}
+
+Tab4<-  Input_KM_C%>%tbl_cross(row = PIPEN, col = CAPRA , percent = "cell") %>%
+  add_p(test = "fisher.test.simulate.p.values")%>%as_flex_table()
+
+Tab4<-set_caption(Tab4, caption = "TabXX - Cross table CAPRA categories (3 cat.)/P.I.P.E.N. risk categories", autonum = 3)
+
+save_as_docx(Tab4,path=paste(pat,"Cross-Tab4.docx",sep=""))
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+# C- method model
+
+```{r}
+library(bootstrap)
+set.seed(3180)
+
+Predict_Pipen<-predict(ModSign,newdata=INKMTE,type="lp")
+Predict_EAU<-predict(Modbase,newdata=INKMTE,type="lp")
+Predict_Capra<-predict(ModCapra,newdata=INKMTE,type="lp")
+Predict_MSKCC<-predict(ModSK,newdata=INKMTE,type="lp")
+Predict_Partin<-predict(ModPartin ,newdata=INKMTE,type="lp")
+
+TE_pipen<-coxph(Surv(INKMTE$Time5Y,INKMTE$Event5Y)~Predict_Pipen,x=T,y=T)
+a_pip<-summary(TE_pipen)
+TE_EAU<-coxph(Surv(INKMTE$Time5Y,INKMTE$Event5Y)~Predict_EAU,data=INKMTE,x=T,y=T)
+a_eau<-summary(TE_EAU)
+TE_Capra<-coxph(Surv(INKMTE$Time5Y,INKMTE$Event5Y)~Predict_Capra,data=INKMTE,x=T,y=T)
+a_Capra<-summary(TE_Capra)
+TE_MSKCC<-coxph(Surv(INKMTE$Time5Y,INKMTE$Event5Y)~Predict_MSKCC,data=INKMTE,x=T,y=T)
+a_MSKCC<-summary(TE_MSKCC)
+TE_Partin<-coxph(Surv(INKMTE$Time5Y,INKMTE$Event5Y)~Predict_Partin,data=INKMTE,x=T,y=T)
+a_partin<-summary(TE_Partin)
+
+Data<-cbind.data.frame(INKMTE$Time5Y,INKMTE$Event5Y,Predict_Pipen,Predict_EAU,Predict_Capra,Predict_MSKCC,Predict_Partin)
+colnames(Data)<-c("Time","Event","Predict_pipen","Predict_EAU","Predict_Capra","Preedict_MSKCC","Predict_Partin")
+
+
+#---- PIPEN
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,3],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+set.seed(3180)
+
+bca<-bcanon(1:438,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_pip$concordance[1]
+x_pipen<-cbind.data.frame(m,t(q))
+x_pipen
+
+
+# ----EAU
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,4],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+set.seed(3180)
+
+bca<-bcanon(1:438,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_eau$concordance[1]
+x_EAU<-cbind.data.frame(m,t(q))
+x_EAU
+
+# ------- CAPRA
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,5],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+
+set.seed(3180)
+bca<-bcanon(1:438,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_Capra$concordance[1]
+x_Capra<-cbind.data.frame(m,t(q))
+x_Capra
+
+
+# ------- MSKCC
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,6],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+set.seed(3180)
+
+bca<-bcanon(1:438,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_MSKCC$concordance[1]
+x_MSKCC<-cbind.data.frame(m,t(q))
+x_MSKCC
+
+# ------- Partin
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,7],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+set.seed(3180)
+
+bca<-bcanon(1:438,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_partin$concordance[1]
+x_Partin<-cbind.data.frame(m,t(q))
+x_Partin
+
+Test_C<-rbind.data.frame(x_pipen,x_EAU,x_Capra,x_MSKCC,x_Partin)
+Test_C<-round(Test_C,3)
+leg<-c("P.I.P.E.N.","EAU","CAPRA","MSKCC","PARTIN")
+Test_C<-cbind.data.frame(leg,Test_C)
+colnames(Test_C)<-c("Model","Estimated","Lower 95% CI","Upper 95% CI")
+Test_C<-flextable(Test_C)
+
+save_as_docx(Test_C,path=paste(pat,"TEST_C_Index.docx",sep=""))
+
+```
+# LRTEST PIPEN vs EAU
+
+```{r}
+
+library(nonnestcox)
+
+a<-plrtest(TE_EAU,TE_pipen, nested =  F,adjusted="BIC")
+a
+
+C1<-c("PIPEN","EAU",round(a$pLRTB,4))
+
+```
+
+
+# LRTEST PIPEN vs CAPRA
+```{r}
+
+plrtest(TE_Capra,TE_pipen,nested = F,adjusted="AIC")
+a<-plrtest(TE_Capra,TE_pipen,nested = F,adjusted="AIC")
+a
+C2<-c("PIPEN","CAPRA",round(a$pLRTB,4))
+
+```
+
+# LRTEST PIPEN vs MSKCC
+```{r}
+
+plrtest(TE_MSKCC,TE_pipen,nested = F,adjusted="AIC")
+a<-plrtest(TE_MSKCC,TE_pipen,nested = F,adjusted="BIC")
+C3<-c("PIPEN","MSKCC",round(a$pLRTB,4))
+
+
+```
+
+# LRTEST PIPEN vs PARTIN
+```{r}
+
+plrtest(TE_Partin,TE_pipen,nested = F,adjusted="AIC")
+a<-plrtest(TE_Partin,TE_pipen,nested = F,adjusted="BIC")
+a
+C4<-c("PIPEN","PARTIN",round(a$pLRTB,4))
+
+
+```
+
+
+# LRTs confronto
+```{r}
+C<-rbind.data.frame(C1,C2,C3,C4)
+
+colnames(C)<-c("Model1","Model2","p.value")
+C<-C%>%mutate(`Model1 fit better than Model2`= if_else(p.value<=0.05,"YES","Two models are Indistinguishable"))
+C<-flextable(C)
+save_as_docx(C,path=paste(pat,"TabXX_LRTest - sinossi.docx",sep=""))
+C
+
+```
+
+
+
+
+# Calibration plot
+
+```{r}
+
+library(survival)
+library(rms)
+S<-Surv(INKMTE$Time5Y,INKMTE$Event5Y)
+Predict_Pipen<-predict(ModSign,newdata=INKMTE,type="survival")
+Predict_EAU<-predict(Modbase,newdata=INKMTE,type="survival")
+Predict_Capra<-predict(ModCapra,newdata=INKMTE,type="survival")
+Predict_MSKCC<-predict(ModSK,newdata=INKMTE,type="survival")
+Predict_Partin<-predict(ModPartin ,newdata=INKMTE,type="survival")
+
+#---------EAU
+  
+ tiff(file=paste(pat,"Calibration_EAU.tiff"))
+w <- val.surv(Modbase,est.surv=Predict_EAU, S=S)
+plot(w, xlim=c(0,1),ylim=c(0,1), col="red",ylab="Observed survival probabilities",xlab="Predicted survival probabilities",main="Calibration plot EAU model")
+legend("topleft", legend= c("Optimal","Model"),
+col=c("black","red"),lty=c(2,1), cex= .8,lwd=2, bty='n')
+
+
+dev.off() 
+
+
+#--------- PIPEN
+  
+ tiff(file=paste(pat,"Calibration_PIPEN.tiff"))
+w <- val.surv(ModSign,est.surv=Predict_Pipen, S=S)
+plot(w, xlim=c(0,1),ylim=c(0,1), col="red",ylab="Observed survival probabilities",xlab="Predicted survival probabilities",main="Calibration plot P.I.P.E.N. model")
+legend("topleft", legend= c("Optimal","Model"),
+col=c("black","red"),lty=c(2,1), cex= .8,lwd=2, bty='n')
+
+
+dev.off() 
+
+
+#--------- Capra
+  
+ tiff(file=paste(pat,"Calibration_CAPRA.tiff"))
+w <- val.surv(ModCapra,est.surv=Predict_Capra, S=S)
+plot(w, xlim=c(0,1),ylim=c(0,1), col="red",ylab="Observed survival probabilities",xlab="Predicted survival probabilities",main="Calibration plot CAPRA model")
+legend("topleft", legend= c("Optimal","Model"),
+col=c("black","red"),lty=c(2,1), cex= .8,lwd=2, bty='n')
+
+
+dev.off() 
+
+#--------- MSKCC
+  
+ tiff(file=paste(pat,"Calibration_MSKCC.tiff"))
+ w <- val.surv(ModSK,est.surv=Predict_MSKCC, S=S)
+plot(w, xlim=c(0,1),ylim=c(0,1), col="red",ylab="Observed survival probabilities",xlab="Predicted survival probabilities",main="Calibration plot MSKCC model")
+legend("topleft", legend= c("Optimal","Model"),
+col=c("black","red"),lty=c(2,1), cex= .8,lwd=2, bty='n')
+
+
+dev.off() 
+
+
+
+#--------- Partin
+  
+ tiff(file=paste(pat,"Calibration_Partin.tiff"))
+w <- val.surv(ModPartin,est.surv=Predict_Partin, S=S)
+plot(w, xlim=c(0,1),ylim=c(0,1), col="red",ylab="Observed survival probabilities",xlab="Predicted survival probabilities",main="Calibration plot PARTIN model")
+legend("topleft", legend= c("Optimal","Model"),
+col=c("black","red"),lty=c(2,1), cex= .8,lwd=2, bty='n')
+
+
+dev.off() 
+
+
+
+```
+
+
+
+
+
+
+#RUN
+```{r}
+
+
+
+
+```
+
+# C index bootstrap
+
+```{r}
+library(bootstrap)
+
+
+Predict_Pipen<-predict(ModSign,newdata=INKMTR,type="lp")
+Predict_EAU<-predict(Modbase,newdata=INKMTR,type="lp")
+Predict_Capra<-predict(ModCapra,newdata=INKMTR,type="lp")
+Predict_MSKCC<-predict(ModSK,newdata=INKMTR,type="lp")
+Predict_Partin<-predict(ModPartin ,newdata=INKMTR,type="lp")
+
+TE_pipen<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_Pipen,x=T,y=T)
+a_pip<-summary(TE_pipen)
+TE_EAU<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_EAU,data=INKMTR,x=T,y=T)
+a_eau<-summary(TE_EAU)
+TE_Capra<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_Capra,data=INKMTR,x=T,y=T)
+a_Capra<-summary(TE_Capra)
+TE_MSKCC<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_MSKCC,data=INKMTR,x=T,y=T)
+a_MSKCC<-summary(TE_MSKCC)
+TE_Partin<-coxph(Surv(INKMTR$Time5Y,INKMTR$Event5Y)~Predict_Partin,data=INKMTR,x=T,y=T)
+a_partin<-summary(TE_Partin)
+
+Data<-cbind.data.frame(INKMTR$Time5Y,INKMTR$Event5Y,Predict_Pipen,Predict_EAU,Predict_Capra,Predict_MSKCC,Predict_Partin)
+colnames(Data)<-c("Time","Event","Predict_pipen","Predict_EAU","Predict_Capra","Preedict_MSKCC","Predict_Partin")
+
+
+#---- PIPEN
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,3],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+set.seed(80)
+
+bca<-bcanon(1:1459,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_pip$concordance[1]
+x_pipen<-cbind.data.frame(m,t(q))
+x_pipen
+
+
+# ----EAU
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,4],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+set.seed(3180)
+
+bca<-bcanon(1:1459,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_eau$concordance[1]
+x_EAU<-cbind.data.frame(m,t(q))
+x_EAU
+
+# ------- CAPRA
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,5],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+set.seed(3180)
+
+bca<-bcanon(1:1459,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_Capra$concordance[1]
+x_Capra<-cbind.data.frame(m,t(q))
+x_Capra
+
+
+# ------- MSKCC
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,6],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+
+set.seed(3180)
+bca<-bcanon(1:1459,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_MSKCC$concordance[1]
+x_MSKCC<-cbind.data.frame(m,t(q))
+x_MSKCC
+
+# ------- Partin
+
+Cdx<-function(x,Data){
+  
+  mod<-coxph(Surv(Data[x,1],Data[x,2])~Data[x,7],data=Data)
+  rr<-summary(mod)
+  rr<-rr$concordance[1]
+  return(rr)
+  
+}
+
+set.seed(3180)
+bca<-bcanon(1:1459,1000,Cdx,Data)
+q<-as.numeric(quantile(bca$u,probs= c(0.025,0.975)))
+m<-a_partin$concordance[1]
+x_Partin<-cbind.data.frame(m,t(q))
+x_Partin
+#-------------
+
+Test_C<-rbind.data.frame(x_pipen,x_EAU,x_Capra,x_MSKCC,x_Partin)
+Test_C<-round(Test_C,3)
+leg<-c("P.I.P.E.N.","EAU","CAPRA","MSKCC","PARTIN")
+Test_C<-cbind.data.frame(leg,Test_C)
+colnames(Test_C)<-c("Model","Estimated","Lower 95% CI","Upper 95% CI")
+Test_C<-flextable(Test_C)
+save_as_docx(Test_C,path=paste(pat,"TRAINING_C_Index.docx",sep=""))
+
+```
+
+
